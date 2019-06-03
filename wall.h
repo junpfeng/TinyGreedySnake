@@ -17,15 +17,17 @@ using namespace std;
 class wall
 {
     public:
-   // enum{
-   //     ROW = 20;
-   //     COL = 20;
-   // };
+    enum{
+        ROW = 20,
+        COL = 20
+    };
     private:
     vector<vector<char>> myscreen;
     public:
-    void initwall(int row = 20,  int col = 20); 
+    void initwall(); 
     void drawall();
+    void setwall(int x, int y, char c);
+    char getwall(int x, int y);
 };
 
 
