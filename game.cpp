@@ -10,11 +10,9 @@
 #include "snake.h"
 #include "food.h"
 #include <ctime>
+#include <thread>
+#include <mutex>
 #include <unistd.h>
-#include <fcntl.h>
-//#include <thread>
-//#include <mutex>
-
 using namespace std;
 // 业务逻辑：游戏开始到按下第一个有效按键之前，处于静止状态
 // 一旦按下有效按键，游戏开始。蛇自动执行上一次的有效按键的操作
@@ -23,21 +21,23 @@ using namespace std;
 char key = 'q';
 
 pthread_mutex_t pmt;
-void* getkeyborad(void *arg)
+mutex mytex;
+void getkeyborad()
 {
     while(1)
     {
-        pthread_mutex_lock(&pmt);
+//        pthread_mutex_lock(&pmt);
+        mytex.lock();
         key = getchar();
         cout << "按下了：" <<  key << endl;
-        pthread_mutex_unlock(&pmt);
-
+//        pthread_mutex_unlock(&pmt);
+        mytex.unlock();
         if ( key  == '0')
         break;
     }
   cout << "thread key is " << key << endl;
 
-    return NULL;
+    return;
 
 };
 int main()
@@ -64,12 +64,12 @@ int main()
     bool isdead = false; // 死亡标志位
     // 开mZ一个新的进程用于接受键盘的输入
 
-    pthread_mutex_init(&pmt, NULL);
+//    pthread_mutex_init(&pmt, NULL);
 
-    pthread_t thread;
+//    pthread_t thread;
 
 
-    // 关闭缓冲区，已达到不需要回车自动接受键盘输入
+    // 关闭缓冲区，已达到不需要回车自动接受键盘输入---要改
     system("stty -icanon");
     while(1)
     {
@@ -82,9 +82,11 @@ int main()
 
         break;
     }
-    pthread_create(&thread, NULL, getkeyborad, NULL);
+//    pthread_create(&thread, NULL, getkeyborad, NULL);
+    thread mythread(getkeyborad);
     while(!isdead)
     {
+        system("clear");
         if (key == mysnake.UP || key == mysnake.RIGHT ||key == mysnake.LEFT ||key == mysnake.DOWN)
         {
             cout << "key is " << key << endl;
@@ -93,9 +95,11 @@ int main()
                 (key == mysnake.UP && prekey == mysnake.DOWN)||
                 (key == mysnake.DOWN && prekey == mysnake.UP))
             {
-                pthread_mutex_lock(&pmt);
+//                pthread_mutex_lock(&pmt);
+                mytex.lock();
                 key = prekey;
-                pthread_mutex_unlock(&pmt);
+//                pthread_mutex_unlock(&pmt);
+                mytex.unlock();
                 cout << "输入相反" << endl;
             }
             prekey = key;
@@ -117,7 +121,8 @@ int main()
     }
 
     // 阻塞等待子线程
-    pthread_join(thread, NULL);
+//    pthread_join(thread, NULL);
+    mythread.join();    
     return 0;
 }
 
