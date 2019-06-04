@@ -10,8 +10,6 @@
 #include "snake.h"
 #include "food.h"
 #include <ctime>
-#include <thread>
-#include <mutex>
 #include <unistd.h>
 using namespace std;
 // 业务逻辑：游戏开始到按下第一个有效按键之前，处于静止状态
@@ -19,27 +17,49 @@ using namespace std;
 // 按下非有效案件一律无效。
 // 无法按下与当前按键相对的（180度）的按键
 char key = 'q';
+char prekey = 'q';
+
 
 pthread_mutex_t pmt;
-mutex mytex;
-void getkeyborad()
+void* getkeyborad(void *ptr)
 {
+    snake * mysnake = (snake*)ptr;
+    char tmp = 'q';
     while(1)
     {
-//        pthread_mutex_lock(&pmt);
-        mytex.lock();
-        key = getchar();
-        cout << "按下了：" <<  key << endl;
-//        pthread_mutex_unlock(&pmt);
-        mytex.unlock();
-        if ( key  == '0')
-        break;
+        pthread_mutex_lock(&pmt);
+        tmp = getchar();
+        cout << "按下了：" <<  tmp << endl;
+        pthread_mutex_unlock(&pmt);
+        if (tmp == mysnake->UP || tmp == mysnake->RIGHT ||tmp == mysnake->LEFT ||tmp == mysnake->DOWN)
+        {
+            cout << "key is " << tmp << endl;
+            // 如果输入的前后两个按键是180度的
+            if ((tmp == mysnake->LEFT && prekey == mysnake->RIGHT)||
+                (tmp == mysnake->RIGHT && prekey == mysnake->LEFT)||
+                (tmp == mysnake->UP && prekey == mysnake->DOWN)||
+                (tmp == mysnake->DOWN && prekey == mysnake->UP))
+            {
+                cout << "输入相反" << endl;
+                // 输入无效，仍然启用之前的按键
+                pthread_mutex_lock(&pmt);
+                tmp = prekey;
+                pthread_mutex_unlock(&pmt);
+            }
+            key = tmp;
+        }
+        else // 如果不是输入的上下左右四个按键，就输入无效
+        {
+            cout << "输入无效" << endl;
+            // 加一个睡眠，防止加死锁（这个线程太快，总是抢到锁)
+        }
+        pthread_mutex_lock(&pmt);
+        cout << "thread key is " << key << endl;
+        pthread_mutex_unlock(&pmt);
     }
-  cout << "thread key is " << key << endl;
+    return NULL;
+}
 
-    return;
-
-};
 int main()
 {
     // 设置随机数种子
@@ -47,34 +67,26 @@ int main()
     // 初始化定义
     wall mw;
     food myfood(mw);
-    snake mysnake(mw, myfood);
+    snake *mysnake = new snake(mw, myfood);
     // 设置墙
     mw.initwall();
 
-    // B
     // 初始化蛇
-    mysnake.initsnake();
+    mysnake->initsnake();
     // 初始化食物
     myfood.setfood();
 
     // 移动测试
     mw.drawall();
-    char prekey = 'q';
     //    cin >> key;
     bool isdead = false; // 死亡标志位
-    // 开mZ一个新的进程用于接受键盘的输入
-
-//    pthread_mutex_init(&pmt, NULL);
-
-//    pthread_t thread;
-
 
     // 关闭缓冲区，已达到不需要回车自动接受键盘输入---要改
     system("stty -icanon");
     while(1)
     {
         key = getchar();
-        if (key == mysnake.LEFT && prekey == 'q')
+        if (key == mysnake->LEFT && prekey == 'q')
         {
             cout << "left is wrongg" << endl;
             continue;
@@ -82,47 +94,34 @@ int main()
 
         break;
     }
-//    pthread_create(&thread, NULL, getkeyborad, NULL);
-    thread mythread(getkeyborad);
+    // 住线程进行循环
+    // 开启一个新的进程用于接受键盘的输入
+    pthread_mutex_init(&pmt, NULL);
+    pthread_t thread;
+    pthread_create(&thread, NULL, getkeyborad, NULL);
     while(!isdead)
     {
-        system("clear");
-        if (key == mysnake.UP || key == mysnake.RIGHT ||key == mysnake.LEFT ||key == mysnake.DOWN)
+
+        prekey = key;
+        cout << "prekey is" << prekey << "key is" << key << endl;
+        if (mysnake->move(key) == true)
         {
-            cout << "key is " << key << endl;
-            if ((key == mysnake.LEFT && prekey == mysnake.RIGHT)||
-                (key == mysnake.RIGHT && prekey == mysnake.LEFT)||
-                (key == mysnake.UP && prekey == mysnake.DOWN)||
-                (key == mysnake.DOWN && prekey == mysnake.UP))
-            {
-//                pthread_mutex_lock(&pmt);
-                mytex.lock();
-                key = prekey;
-//                pthread_mutex_unlock(&pmt);
-                mytex.unlock();
-                cout << "输入相反" << endl;
-            }
-            prekey = key;
-            if (mysnake.move(key) == true)
-            {
-                mw.drawall();
-                sleep(1);
-            }
-            else
-            {
-                isdead = true;
-            }
+            system("clear");
+            mw.drawall();
+            usleep(200000);
         }
         else
         {
-            key = prekey;
-            cout << "输入无效" << endl;
+
+            cout << prekey << "," << key << endl;
+            isdead = true;
         }
     }
 
     // 阻塞等待子线程
-//    pthread_join(thread, NULL);
-    mythread.join();    
+    pthread_join(thread, NULL);
+    delete mysnake;
+    pthread_mutex_destroy(&pmt);
     return 0;
 }
 
