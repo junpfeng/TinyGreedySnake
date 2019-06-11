@@ -1,0 +1,9 @@
+*.o
+
+tmp
+tmp.cpp
+game
+game_rwlock.cpp
+game_rwlock.cpp
+wall
+*.out
