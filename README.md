@@ -1,4 +1,5 @@
-#SnakerByCpp  
-a simple game designed by cpp  
-在一个简单的c/cpp小游戏基础上添加了多种Linux多线程和多进程的不同写法  
+#GreedySnake
+a simple game created by cpp  
+在此小游戏的基础上，练习多线程、多进程中等等的各种同步的用法
+
 
